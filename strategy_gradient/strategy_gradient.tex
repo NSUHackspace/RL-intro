@@ -1,0 +1,283 @@
+% Этот шаблон документа разработан в 2014 году
+% Данилом Фёдоровых (danil@fedorovykh.ru) 
+% для использования в курсе 
+% <<Документы и презентации в \LaTeX>>, записанном НИУ ВШЭ
+% для Coursera.org: http://coursera.org/course/latex .
+% Исходная версия шаблона --- 
+% https://www.writelatex.com/coursera/latex/2
+
+\documentclass[a4paper,12pt]{article}
+
+%%% Работа с русским языком
+\usepackage{cmap}					% поиск в PDF
+\usepackage{mathtext} 				% русские буквы в формулах
+\usepackage[T2A]{fontenc}			% кодировка
+\usepackage[utf8]{inputenc}			% кодировка исходного текста
+\usepackage[english,russian]{babel}	% локализация и переносы
+
+%%% Дополнительная работа с математикой
+\usepackage{amsfonts,amssymb,amsthm,mathtools} % AMS
+\usepackage{amsmath}
+\usepackage{icomma} % "Умная" запятая: $0,2$ --- число, $0, 2$ --- перечисление
+
+%% Номера формул
+%\mathtoolsset{showonlyrefs=true} % Показывать номера только у тех формул, на которые есть \eqref{} в тексте.
+
+%% Шрифты
+\usepackage{euscript}	 % Шрифт Евклид
+\usepackage{mathrsfs} % Красивый матшрифт
+
+%% Управление цветами документа
+\usepackage{xcolor}
+
+%% Свои команды
+\DeclareMathOperator{\sgn}{\mathop{sgn}}
+\DeclareMathOperator{\tr}{\mathop{tr}}
+\DeclareMathOperator{\img}{\mathop{Img}}
+\DeclareMathOperator{\spn}{\mathop{span}}
+\DeclareMathOperator{\rank}{\mathop{rank}}
+\DeclareMathOperator{\ind}{\mathop{ind}}
+\DeclareMathOperator{\pr}{\mathop{pr}}
+\DeclareMathOperator{\ort}{\mathop{ort}}
+
+%% Перенос знаков в формулах (по Львовскому)
+\newcommand*{\hm}[1]{#1\nobreak\discretionary{}
+{\hbox{$\mathsurround=0pt #1$}}{}}
+
+%%% Работа с картинками
+\usepackage{graphicx}  % Для вставки рисунков
+\graphicspath{{images/}{images2/}{img/}}  % папки с картинками
+\setlength\fboxsep{3pt} % Отступ рамки \fbox{} от рисунка
+\setlength\fboxrule{1pt} % Толщина линий рамки \fbox{}
+\usepackage{wrapfig} % Обтекание рисунков и таблиц текстом
+
+%%% Работа с таблицами
+\usepackage{array,tabularx,tabulary,booktabs} % Дополнительная работа с таблицами
+\usepackage{longtable}  % Длинные таблицы
+\usepackage{multirow} % Слияние строк в таблице
+
+%%% Геометрия страницы
+\usepackage[right=15mm, left=20mm, top=15mm, bottom=20mm, nohead]{geometry}
+
+\usepackage{indentfirst}
+
+\newtheorem*{definition}{Опр}
+
+\newtheorem*{lemma}{Лемма}
+\newtheorem{theorem}{Теорема}[section]
+
+\newcounter{propcnt}
+%\def\propcnt{\arabic{subsection}}
+\newtheorem{propos}{Предл}[section]
+
+\newtheorem*{prob}{Задача}
+\newtheorem*{remark}{Замечание}
+\newtheorem*{corollary}{Следствие}
+
+\newenvironment{soln}{\noindent\textit{Решение.}}{\hfill$\square$}
+\numberwithin{equation}{section}
+
+\usepackage{minted}
+
+%%% Заголовок
+\author{NSU Hackspace}
+\title{Захватывающая история о градиенте стратегии в RL}
+\date{\today}
+
+\begin{document} % конец преамбулы, начало документа
+
+\maketitle
+
+\section{Основные понятия и задачи RL}
+
+Начнём разговор с описания окружающего ландшафта и посмотрим ещё раз на основные элементы RL.
+
+\begin{definition}
+	Траектория $\tau = s_0, a_0, r_0, \ldots$ -- последовательность состояний $s_t$, между которыми перемещается агент, совершая действия $a_t$ и получая вознаграждение $r_t$. Конечную траекторию будем также  называть эпизодом.
+\end{definition}
+
+При выборе очередного действия, агент использует стратегию $\pi_{\theta}$.
+
+\begin{definition}
+	 Стратегия $\pi_{\theta}$ -- отображение пространства состояний на пространство действий. Для каждого состояния $s_t$ стратегия возвращает распределение вероятностей выбора того или иного действия $\pi_{\theta} (s_t)$.
+\end{definition}
+
+В роли стратегии $\pi_{\theta}$ выступает какая-то хитрая функция с набором параметров $\theta$, покрутив которые можно обучить её нужному поведению. Для удобства мы можем считать, что это нейросеть. 
+
+Эффективность стратегии $\pi_{\theta}$ определяется вознаграждением, которое агент получил при движении вдоль траектории $\tau$, порожденной $\pi_{\theta}$. 
+
+\begin{definition}
+Функция вознаграждения $R_t(\tau)$ представляет собой сумму всех вознаграждений $r_t$, которые получил агент, начиная с момента времени $t$ и до конца эпизода $T$. Коэффициент обесценивания $\gamma$ регулирует влияние отдаленных шагов на текущий момент времени $t$
+\[
+	R_t(\tau) = \sum_{t' = t}^{T} \gamma^{t' - t} r_t
+\]
+\end{definition}
+
+Если траекторию рассматриваем целиком, то обозначение слегка упрощается (исчезает индекс $t$):
+\[
+	R(\tau) := R_0(\tau) = \sum_{t = 0}^{T} \gamma^{t} r_t
+\]
+
+В сложных средах траектории будут сильно различаться даже для одной и той же стратегии $\pi_{\theta}$, поэтому для оценки поведения агента удобнее усреднять вознаграждение по набору траекторий. 
+
+\begin{definition}
+Целевая функция $J(\pi_{\theta})$ -- это среднее вознаграждение агента по всем траекториям, порожденным с помощью стратегии $\pi_{\theta}$.
+\[
+	J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \right] = E_{\tau \sim \pi_{\theta}} \left[ \sum_{t = 0}^{T} \gamma^{t} r_t \right]
+\]
+\end{definition}
+ Возникает естественное желание, изменяя параметры $\theta$ стратегии  $\pi_{\theta}$,  максимизировать целевую функцию, чтобы добиться наибольшего вознаграждения для агента.
+\[
+	\max_{\theta} J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \right]
+\]
+
+Т.к. мы договорились считать $\pi_{\theta}$ нейросетью, то набор параметров $\theta$ -- это просто веса сети.
+
+
+\section{Градиентные затруднения}
+
+В первом приближении карта местности определена. Цель: увеличить среднее вознаграждение,  которое получает агент в процессе взаимодействия со средой, руководствуясь стратегией $\pi_{\theta}$. Математическим языком эту цель можно выразить в виде задачи оптимизации
+
+\begin{equation} \label{eq:maximization}
+		\max_{\theta} J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \right]
+\end{equation}
+
+Как это можно сделать? Первый ответ, который приходит в голову специалистам по ML, воспользоваться градиентом целевой функции $J(\pi_{\theta})$ по набору параметров $\theta$: $\nabla_\theta J(\pi_{\theta})$! Схему градиентного подъема можно записать вот так
+\[
+\theta \leftarrow \theta + \alpha \nabla_\theta J(\pi_{\theta})
+\]
+
+Но как воспользоваться ей на практике? 
+
+Посмотрим внимательно на уравнение нашей задачи оптимизации (\ref{eq:maximization}). Ключевым элементом выражения является функция вознаграждения $R(\tau)$. Что же нам известно о ней? Как она зависит от $\theta$? 
+
+К сожалению, мы не знаем об $R(\tau)$ почти ничего, она выступает в роли загадочного черного ящика. Выражение $R(\tau) = \sum_{t = 0}^{T} \gamma^{t} r_t$ не получится продифференцировать по $\theta$. Но связь между $\theta$ и $R(\tau)$ можно почувствовать, сэмплируя траектории $\tau \sim \pi_{\theta}$ и вычисляя вдоль них вознаграждение $R(\tau)$. То есть, нужная информация хранится в распределении $\tau \sim \pi_{\theta}$  и нужно найти способ до неё добраться.
+
+\section{Теорема о градиенте}
+
+Такой способ существует и называется теоремой о градиенте стратегии. Для удобства восприятия, мы сперва разберем её в упрощенных обозначениях, а затем подставим интересующие выражения и выведем основной результат.
+
+Пусть определены следующие объекты: функция $f(x)$, условное (или параметризованное) распределение вероятностей $p(x | \theta)$ и математическое ожидание $E_{x \sim p(x|\theta)} \left[ f(x)\right]$. Найдем градиент математического ожидания по параметру $\theta$ \\
+
+\begin{tabular}{lr}
+$\nabla_\theta E_{x \sim p(x|\theta)} \left[ f(x)\right] = $  & (сперва выпишем определение мат. ожидания) \\ [1ex] 
+$ = \nabla_\theta \int f(x) p(x | \theta) dx =$ & (вносим $\nabla_\theta$ под знак интеграла ) \\ [1ex]
+$ =  \int \nabla_\theta \left( f(x) p(x | \theta) \right) dx =$ & (применяем оператор дифференцирования) \\ [1ex]
+$ =  \int f(x) \nabla_\theta p(x | \theta) dx =$ & (домножим на единицу в виде $\frac{p(x | \theta)}{p(x | \theta)}$ ) \\ [1ex]
+$ =  \int f(x) p(x | \theta) \dfrac{\nabla_\theta p(x | \theta)}{p(x | \theta)}  dx =$ & (вносим  $\frac{1}{p(x | \theta)}$ под оператор дифференцирования  ) \\ [2ex]
+$ =  \int f(x) p(x | \theta) \nabla_\theta \log p(x | \theta) dx =$ & (собираем обратно выражение для мат. ожидания) \\ [1ex] 
+$= E_{x \sim p(x|\theta)} \left[ f(x) \nabla_\theta \log p(x | \theta) \right]  $  & \\ [2ex]
+\end{tabular}
+
+За счет смены порядка операторов дифференцирования и интегрирования, а также пары математических трюков удалось получить тождество, в котором градиент находится под интегралом и действует только на распределение $p(x | \theta)$, явным образом зависящее от параметра $\theta$. 
+
+\begin{equation} \label{eq:gradient}
+	\nabla_\theta E_{x \sim p(x|\theta)} \left[ f(x)\right] = E_{x \sim p(x|\theta)} \left[ f(x) \nabla_\theta \log p(x | \theta) \right]
+\end{equation}
+
+На функцию $f(x)$ при этом накладываются минимальные требования: мы хотим, чтобы она была интегрируемой. Тогда интеграл для мат. ожидания можно оценивать численно с помощью выборок $x \sim p(x | \theta)$. 
+
+Чтобы вернуться обратно к градиенту целевой функции $\nabla_\theta J(\pi_{\theta})$, подставим в получившееся тождество (\ref{eq:gradient}) выражения для стратегии $\pi_{\theta}$. Теперь в роли $x$ выступает траектория $\tau$, $f(x) = R(\tau)$, а $p(x | \theta) = p(\tau | \theta)$.
+\begin{equation}
+		\nabla_\theta J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \log p(\tau | \theta) \right]
+\end{equation}
+
+В целом выражение выглядит хорошо, но появился множитель $p(\tau | \theta)$, который выражает вероятность возникновения траектории $\tau$, при условии, что стратегия задана набором параметров $\theta$. Как его вычислить? 
+
+Мы знаем, что для каждого шага $t$ вероятность действия $a_t$ определяется стратегией и равна $\pi_{\theta} (a_t | s_t)$, а вероятность перехода между состояниями $s_t$ и $s_{t+1}$ определяется как $p(s_{t+1} | s_t, a_t)$. Тогда вероятность осуществления всей траектории $\tau$ равна произведению вероятностей этих переходов.
+
+\begin{equation} \label{eq:ptau}
+	p(\tau | \theta) = \prod_{t \ge 0} p(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t)
+\end{equation}
+
+
+Загадка множителя $p(\tau | \theta)$ разгадана, но попробуем ещё немного улучшить уравнение градиента, прологарифмировав выражение (\ref{eq:ptau}) и вычислив градиент по $\theta$
+
+\begin{equation*}
+	\log p(\tau | \theta) = \log \prod_{t \ge 0} p(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t)  = 
+						   \sum_{t \ge 0} \left( \log p(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t) \right) 
+\end{equation*}
+
+\begin{equation*} 
+	\nabla_\theta \log p(\tau | \theta) = \nabla_\theta 
+\sum_{t \ge 0} \left( \log p(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t) \right) = \nabla_\theta \sum_{t \ge 0} \log \pi_\theta (a_t | s_t)
+\end{equation*}
+
+\begin{equation} \label{eq:logpi}
+	\nabla_\theta \log p(\tau | \theta) = \nabla_\theta \sum_{t \ge 0} \log \pi_\theta (a_t | s_t)
+\end{equation}
+
+В равенстве (\ref{eq:logpi}) удалось избавиться от вероятностей, связанных с переходами между состояниями, которые не зависят от стратегии, т.е. агент не может на них повлиять. 
+
+Т.о., внеся все множители под знак суммы, мы получаем формулировку теоремы о градиенте стратегии. 
+
+\begin{theorem}[теорема о градиенте стратегии]
+	\begin{equation} \label{eq:strategy}
+	\nabla_\theta J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ \sum_{t \ge 0} R(\tau) \nabla_\theta  \log \pi_\theta (a_t | s_t) \right]
+	\end{equation}
+\end{theorem}
+
+
+На практике имеет смысл ...
+
+
+Последним преобразованием мы отбросим пустые вычислительные шаги из функции вознаграждения \\
+
+\begin{tabular}{lr}
+	$ \nabla_\theta J(\pi_{\theta}) = E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \log p(\tau | \theta) \right]$ & (подставляем (\ref{eq:logpi})) \\ [2ex] 
+	$= E_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \sum_{t \ge 0} \log \pi_\theta (a_t | s_t) \right]$ & (вносим $R(\tau)$ и $\nabla_\theta$ под знак суммы) \\ [2ex]
+	$= E_{\tau \sim \pi_{\theta}} \left[ \sum_{t \ge 0} R(\tau) \nabla_\theta  \log \pi_\theta (a_t | s_t) \right]$ & (отбрасываем шаги, сделанные в прошлом) \\ [2ex]
+	$= E_{\tau \sim \pi_{\theta}} \left[ \sum_{t = 0}^{T} R_t(\tau) \nabla_\theta  \log \pi_\theta (a_t | s_t) \right]$ & \\[2ex]
+\end{tabular}
+
+Почему какие-то шаги в $R(\tau)$ оказались пустыми? Чтобы разобраться, полезно развернуть сумму и внимательно посмотреть на слагаемые: 
+\[
+	\sum_{t \ge 0} R(\tau) \nabla_\theta  \log \pi_\theta (a_t | s_t) = R(\tau) \nabla_\theta  \log \pi_\theta (a_0 | s_0) + R(\tau) \nabla_\theta  \log \pi_\theta (a_1 | s_1) + \ldots
+\]
+
+
+
+
+Полученное выражение в общем случае не получится аналитически проинтегрировать, но на самом деле этого и не требуется. Основная ценность уравнения градиента (\ref{eq:strategy}) заключается в том, что с его помощью можно определять направление, в котором следует изменить стратегию $\pi_\theta$, чтобы увеличить совокупное вознаграждение. Достаточно просто собирать информацию о пройденных траекториях.
+
+Последнее замечание касается множителя $\nabla_\theta  \log \pi_\theta (a_t | s_t)$. Т.к. $\pi_\theta$ является по сути нейросетью, возвращающей вероятностные распределения для действий на каждом шаге, значит с вычислением градиента способен справиться любой DL-фреймворк. 
+
+
+\section{Пример алгоритма}
+
+В настоящее время достаточно много продвинутых RL-алгоритмов в том или ином виде опираются на градиент стратегии. В качестве примера разберем простейший из них, который называется REINFORCE. Это алгоритм, использующий для обучения только актуальный опыт, то есть текущую траекторию. 
+
+\begin{minted}{python}
+def reinforce(env, pi, n_episode, gamma=1.0):
+   """
+   Алгоритм REINFORCE
+   @param env: имя среды Gym
+   @param pi: сеть, аппроксимирующая стратегию
+   @param n_episode: количество эпизодов
+   @param gamma: коэффициент обесценивания
+   """
+   for episode in range(n_episode):
+     log_probs = []
+     rewards = []
+     state = env.reset()
+     while True:
+       action, log_prob = pi.get_action(state)
+       next_state, reward, is_done, _ = env.step(action)
+       log_probs.append(log_prob)
+       rewards.append(reward)
+       if is_done:
+          returns = []
+          Gt, k = 0, 0
+          for reward in rewards[::-1]:
+             Gt += gamma ** k * reward
+             k += 1
+             returns.append(Gt)
+       returns = torch.tensor(returns)			
+       pi.update(returns, log_probs)
+\end{minted}
+
+\section{Использованные источники}
+
+
+\end{document} % конец документа
+ 
